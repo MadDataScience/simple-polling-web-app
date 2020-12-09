@@ -6,3 +6,5 @@ spent 1 hour (12/04 13:00-14:00) setting up repo, docker, etc.
 
 To Do:
 - Authentication - https://blog.usejournal.com/authentication-in-golang-c0677bcce1a8
+- Handle errors
+- make code modular and dry

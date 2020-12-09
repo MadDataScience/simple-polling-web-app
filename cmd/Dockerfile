@@ -7,6 +7,7 @@ RUN apk add --no-cache git
 RUN apk add --no-cache sqlite-libs sqlite-dev
 RUN apk add --no-cache build-base
 RUN go get github.com/mattn/go-sqlite3
+RUN go get golang.org/x/crypto/bcrypt
 
 RUN mkdir /app
 COPY . /app

@@ -1,0 +1,13 @@
+<html>
+  <body>
+<form action="/create" method="POST">
+  <input type="hidden" id="email" name="email" value="{{.Email}}" />
+  <input type="hidden" id="token" name="token" value="{{.Token}}" />
+  <input type="hidden" id="expiration" name="expiration" value="{{.TokenExpiration}}" />
+  {{range .Polls}}
+  <input type="radio" id="{{.PollID}}" name="poll" value="{{.PollID}}">{{.Title}}<br>
+  {{end}}
+  <input type="radio" id="new" name="poll" value="new">New
+  <div><input type="submit" value="Continue"></div>
+  </form>
+</body></html>
