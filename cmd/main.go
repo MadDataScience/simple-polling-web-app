@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"html/template"
 
-	// "io"
-	"io/ioutil"
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -33,9 +31,6 @@ type User struct {
 	TokenExpiration string
 }
 
-type ErrorResponse struct {
-	Err string
-}
 
 func (u *User) save() error {
 	if u.Password != u.ConfirmPassword {
@@ -76,42 +71,6 @@ func (u *User) save() error {
 	return nil
 }
 
-// func CreateUser(w http.ResponseWriter, r *http.Request) {
-//     user := &User{}
-//     json.NewDecoder(r.Body).Decode(user)
-
-//     pass, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-//     if err != nil {
-//         fmt.Println(err)
-//         err := ErrorResponse{
-//             Err: "Password Encryption failed",
-//         }
-//         json.NewEncoder(w).Encode(err)
-//     }
-
-//     user.Password = string(pass)
-
-//     createdUser := db.Create(user)
-// }
-
-func loadPage(title string) (*Page, error) {
-	filename := title + ".txt"
-	body, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	return &Page{Title: title, Body: body}, nil
-}
-
-func MainHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("index.html")
-	t.Execute(w, nil)
-}
-
-func newUserHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("new-user.html")
-	t.Execute(w, nil)
-}
 
 func (u *User) validate() (string, string, error) {
 	if time.Now().String() > u.TokenExpiration {
@@ -182,6 +141,14 @@ func (u *User) login() (string, string, error) {
 	return expiration, token, err
 }
 
+type Question struct {
+	Email           string
+	Token           string
+	TokenExpiration string
+	QID             int64
+	Question        string
+}
+
 func (q *Question) update() error {
 	db, err := sql.Open("sqlite3", "test.db")
 	if err != nil {
@@ -194,6 +161,15 @@ func (q *Question) update() error {
 	_, err = statement.Exec(q.Question, q.QID)
 	fmt.Printf("Question %d: %s\n", q.QID, q.Question)
 	return err
+}
+
+type Poll struct {
+	Email           string
+	Token           string
+	TokenExpiration string
+	PollID          int64
+	Title           string
+	Questions       []Question
 }
 
 func (p *Poll) update() error {
@@ -210,57 +186,11 @@ func (p *Poll) update() error {
 	return err
 }
 
-type Question struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	QID             int64
-	Question        string
-}
-
-type Poll struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	PollID          int64
-	Title           string
-	Questions       []Question
-}
-
 type MenuData struct {
 	Email           string
 	Token           string
 	TokenExpiration string
 	Polls           []Poll
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	// fmt.Println("method:", r.Method) //get request method
-	// if r.Method == "GET" {
-	t, _ := template.ParseFiles("login.html")
-	t.Execute(w, nil)
-	// } else {
-	// 	r.ParseForm()
-	// 	// logic part of log in
-	// 	u := &User{
-	// 		Email:    r.FormValue("email"),
-	// 		Password: r.FormValue("password"),
-	// 	}
-	// 	fmt.Println("email:", u.Email)
-	// 	fmt.Println("password:", u.Password)
-
-	// 	token, expiration, err := u.login()
-	// 	if err != nil {
-	// 		fmt.Print(err)
-	// 	}
-	// 	data := MenuData{
-	// 		Email:           u.Email,
-	// 		Token:           token,
-	// 		TokenExpiration: expiration,
-	// 	}
-	// 	t, _ := template.ParseFiles("menu.html")
-	// 	t.Execute(w, data)
-	// }
 }
 
 func (m *MenuData) populate() error {
@@ -281,6 +211,21 @@ func (m *MenuData) populate() error {
 		m.Polls = append(m.Polls, p)
 	}
 	return err
+}
+
+func MainHandler(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("index.html")
+	t.Execute(w, nil)
+}
+
+func newUserHandler(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("new-user.html")
+	t.Execute(w, nil)
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("login.html")
+	t.Execute(w, nil)
 }
 
 func menuHandler(w http.ResponseWriter, r *http.Request) {
