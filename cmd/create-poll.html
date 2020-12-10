@@ -1,14 +1,16 @@
 <html>
   <body>
 <form action="/create" method="POST">
+  <input type="hidden" id="page" name="page" value="create-poll" />
   <input type="hidden" id="email" name="email" value="{{.Email}}" />
   <input type="hidden" id="token" name="token" value="{{.Token}}" />
   <input type="hidden" id="expiration" name="expiration" value="{{.TokenExpiration}}" />
+  <input type="hidden" id="poll-id" name="poll-id" value="{{.PollID}}" />
   <B>Poll # {{.PollID}} Title: <input type="text" id="title" name="title" value="{{.Title}}" /></B><br>
   {{range .Questions}}
   Question {{.QID}}: <input type="text" id="{{.QID}}" name="{{.QID}}" value="{{.Question}}" /><br>
   {{end}}
-  New Question (leave blank if done): <input type="text" id="new" name="new" value="" />
+  New Question (leave blank if done): <input type="text" id="new-question" name="new-question" value="" />
   <div><input type="submit" id="append" name="append" value="Submit"></div>
   <div><input type="submit" id="finished" name="finished" value="Finished"></div>
   </form>
