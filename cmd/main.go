@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	// "encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -15,7 +14,6 @@ import (
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
-	// "golang.org/x/crypto/bcrypt"
 )
 
 type Page struct {
@@ -30,7 +28,6 @@ type User struct {
 	Token           string
 	TokenExpiration string
 }
-
 
 func (u *User) save() error {
 	if u.Password != u.ConfirmPassword {
@@ -70,7 +67,6 @@ func (u *User) save() error {
 	}
 	return nil
 }
-
 
 func (u *User) validate() (string, string, error) {
 	if time.Now().String() > u.TokenExpiration {
@@ -203,19 +199,62 @@ func (m *MenuData) populate() error {
 		return err
 	}
 	p := Poll{}
+	var title sql.NullString
 	for rows.Next() {
-		err = rows.Scan(&p.PollID, &p.Title)
+		err = rows.Scan(&p.PollID, &title)
 		if err != nil {
 			return err
+		}
+		if title.Valid {
+			p.Title = title.String
 		}
 		m.Polls = append(m.Polls, p)
 	}
 	return err
 }
 
+type Public struct {
+	Polls []Poll
+}
+
+func (pub *Public) populate() error {
+	db, err := sql.Open("sqlite3", "test.db")
+	if err != nil {
+		return err
+	}
+	rows, err := db.Query("SELECT poll_id, title FROM polls")
+	if err != nil {
+		return err
+	}
+	p := Poll{}
+	var title sql.NullString
+	for rows.Next() {
+		err = rows.Scan(&p.PollID, &title)
+		if err != nil {
+			return err
+		}
+		if title.Valid {
+			p.Title = title.String
+		}
+		pub.Polls = append(pub.Polls, p)
+	}
+	return err
+}
+
 func MainHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("index.html")
-	t.Execute(w, nil)
+	p := &Public{}
+	err := p.populate()
+	if err != nil {
+		fmt.Print(err)
+	}
+	t, err := template.ParseFiles("index.html")
+	if err != nil {
+		fmt.Print(err)
+	}
+	err = t.Execute(w, p)
+	if err != nil {
+		fmt.Print(err)
+	}
 }
 
 func newUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -264,6 +303,126 @@ func menuHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func initPoll() (*Poll, error) {
+	poll := &Poll{}
+	db, err := sql.Open("sqlite3", "test.db")
+	if err != nil {
+		return poll, err
+	}
+	statement, err :=
+		db.Prepare(`CREATE TABLE IF NOT EXISTS polls (
+			poll_id INTEGER PRIMARY KEY,
+			email VARCHAR(320), 
+			title TEXT
+			)`)
+	if err != nil {
+		return poll, err
+	}
+	statement.Exec()
+	statement, err =
+		db.Prepare(`CREATE TABLE IF NOT EXISTS questions (
+			q_id INTEGER PRIMARY KEY,
+			poll_id INTEGER,
+			question TEXT
+			)`)
+	if err != nil {
+		return poll, err
+	}
+	_, err = statement.Exec()
+	return poll, err
+}
+
+func (p *Poll) new(u *User) error {
+	if u.Email == "" {
+		return fmt.Errorf("email missing")
+	}
+	p.Email = u.Email
+	p.Token = u.Token
+	p.TokenExpiration = u.TokenExpiration
+
+	db, err := sql.Open("sqlite3", "test.db")
+	if err != nil {
+		return err
+	}
+	statement, err := db.Prepare("INSERT INTO polls (email) VALUES (?)")
+	if err != nil {
+		return err
+	}
+	res, err := statement.Exec(u.Email)
+	if err != nil {
+		return err
+	}
+	p.PollID, err = res.LastInsertId()
+	return err
+}
+
+func (p *Poll) populate(u *User) error {
+	if p.PollID == 0 {
+		return fmt.Errorf("poll id missing")
+	}
+	p.Email = u.Email
+	p.Token = u.Token
+	p.TokenExpiration = u.TokenExpiration
+
+	db, err := sql.Open("sqlite3", "test.db")
+	if err != nil {
+		return err
+	}
+	rows, err := db.Query("SELECT title FROM polls WHERE poll_id = ?", p.PollID)
+	if err != nil {
+		return err
+	}
+	var title sql.NullString
+	for rows.Next() {
+		rows.Scan(&title)
+	}
+	if title.Valid {
+		p.Title = title.String
+	}
+	rows, err = db.Query("SELECT q_id, question FROM questions WHERE poll_id = ?", p.PollID)
+	if err != nil {
+		return err
+	}
+	p.Questions = []Question{} // reset question array
+	q := Question{}
+	for rows.Next() {
+		err = rows.Scan(&q.QID, &q.Question)
+		if err != nil {
+			return err
+		}
+		p.Questions = append(p.Questions, q)
+	}
+	return err
+}
+
+func (poll *Poll) newQuestion(question string) (int64, error) {
+	if poll.PollID == 0 {
+		return 0, fmt.Errorf("poll id missing")
+	}
+	db, err := sql.Open("sqlite3", "test.db")
+	if err != nil {
+		return 0, err
+	}
+	statement, err := db.Prepare("INSERT INTO questions (poll_id, question) VALUES (?, ?)")
+	if err != nil {
+		return 0, err
+	}
+	res, err := statement.Exec(poll.PollID, question)
+	if err != nil {
+		return 0, err
+	}
+	newQID, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	newQ := &Question{
+		QID:      newQID,
+		Question: question,
+	}
+	poll.Questions = append(poll.Questions, *newQ)
+	return newQ.QID, err
+}
+
 func createPollHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	u := &User{
@@ -272,38 +431,22 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		TokenExpiration: r.FormValue("expiration"),
 	}
 	u.validate()
-	db, _ := sql.Open("sqlite3", "test.db")
-	statement, _ :=
-		db.Prepare(`CREATE TABLE IF NOT EXISTS polls (
-			poll_id INTEGER PRIMARY KEY,
-			email VARCHAR(320), 
-			title TEXT
-			)`)
-	statement.Exec()
-	statement, _ =
-		db.Prepare(`CREATE TABLE IF NOT EXISTS questions (
-			q_id INTEGER PRIMARY KEY,
-			poll_id INTEGER,
-			question TEXT
-			)`)
-	statement.Exec()
-	poll := Poll{}
+	poll, err := initPoll()
+	if err != nil {
+		fmt.Print(err)
+	}
 
 	if r.FormValue("poll") == "new" {
-		statement, _ = db.Prepare("INSERT INTO polls (email) VALUES (?)")
-		res, _ := statement.Exec(u.Email)
-		poll.PollID, _ = res.LastInsertId()
+		err = poll.new(u)
+		if err != nil {
+			fmt.Print(err)
+		}
 		fmt.Printf("poll id: %v,", poll.PollID)
 	} else {
 		poll.PollID, _ = strconv.ParseInt(r.FormValue("poll"), 10, 64)
 	}
 
-	rows, _ := db.Query("SELECT q_id, question FROM questions WHERE poll_id = ?", poll.PollID)
-	q := Question{}
-	for rows.Next() {
-		rows.Scan(&q.QID, &q.Question)
-		poll.Questions = append(poll.Questions, q)
-	}
+	poll.populate(u)
 
 	newQ := r.FormValue("new-question")
 
@@ -314,7 +457,7 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		poll.update()
 
 		// update questions
-		for _, q = range poll.Questions {
+		for _, q := range poll.Questions {
 			if q.Question != r.FormValue(strconv.FormatInt(q.QID, 10)) {
 				q.Question = r.FormValue(strconv.FormatInt(q.QID, 10))
 				q.update()
@@ -323,9 +466,10 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 
 		// add new question
 		if newQ != "" {
-			statement, _ = db.Prepare("INSERT INTO questions (poll_id, question) VALUES (?, ?)")
-			res, _ := statement.Exec(poll.PollID, newQ)
-			newQID, _ := res.LastInsertId()
+			newQID, err := poll.newQuestion(newQ)
+			if err != nil {
+				fmt.Print(err)
+			}
 			fmt.Printf("new question ID: %d\n", newQID)
 		} else {
 			menuHandler(w, r)
@@ -333,27 +477,10 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	refreshPoll := Poll{
-		PollID:          poll.PollID,
-		Email:           u.Email,
-		Token:           u.Token,
-		TokenExpiration: u.TokenExpiration,
-	}
-
-	rows, _ = db.Query("SELECT title FROM polls WHERE poll_id = ?", refreshPoll.PollID)
-	for rows.Next() {
-		rows.Scan(&refreshPoll.Title)
-	}
-
-	rows, _ = db.Query("SELECT q_id, question FROM questions WHERE poll_id = ?", refreshPoll.PollID)
-	for rows.Next() {
-		q = Question{}
-		rows.Scan(&q.QID, &q.Question)
-		refreshPoll.Questions = append(refreshPoll.Questions, q)
-	}
+	poll.populate(u)
 
 	t, _ := template.ParseFiles("create-poll.html")
-	t.Execute(w, refreshPoll)
+	t.Execute(w, poll)
 }
 
 func saveUserHandler(w http.ResponseWriter, r *http.Request) {
