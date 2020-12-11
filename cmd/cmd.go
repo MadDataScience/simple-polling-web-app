@@ -11,6 +11,7 @@ import (
 
 	"github.com/maddatascience/simple-polling-web-app/database"
 	"github.com/maddatascience/simple-polling-web-app/models/user"
+	"github.com/maddatascience/simple-polling-web-app/models/poll"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -19,84 +20,8 @@ type Page struct {
 	Body  []byte
 }
 
-type Question struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	QID             int64
-	Question        string
-}
-
-func (q *Question) update() error {
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	statement, err := db.Prepare("UPDATE questions SET question = ? WHERE q_id = ?")
-	if err != nil {
-		return err
-	}
-	_, err = statement.Exec(q.Question, q.QID)
-	fmt.Printf("Question %d: %s\n", q.QID, q.Question)
-	return err
-}
-
-type Poll struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	PollID          int64
-	Title           string
-	Questions       []Question
-}
-
-func (p *Poll) update() error {
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	statement, err := db.Prepare("UPDATE polls SET title = ? WHERE poll_id = ?")
-	if err != nil {
-		return err
-	}
-	_, err = statement.Exec(p.Title, p.PollID)
-	fmt.Printf("Poll %d: %s\n", p.PollID, p.Title)
-	return err
-}
-
-type MenuData struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	Polls           []Poll
-}
-
-func (m *MenuData) populate() error {
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT poll_id, title FROM polls WHERE email = ?", m.Email)
-	if err != nil {
-		return err
-	}
-	p := Poll{}
-	var title sql.NullString
-	for rows.Next() {
-		err = rows.Scan(&p.PollID, &title)
-		if err != nil {
-			return err
-		}
-		if title.Valid {
-			p.Title = title.String
-		}
-		m.Polls = append(m.Polls, p)
-	}
-	return err
-}
-
 type Public struct {
-	Polls []Poll
+	Polls []poll.Poll
 }
 
 func (pub *Public) populate() error {
@@ -108,7 +33,7 @@ func (pub *Public) populate() error {
 	if err != nil {
 		return err
 	}
-	p := Poll{}
+	p := poll.Poll{}
 	var title sql.NullString
 	for rows.Next() {
 		err = rows.Scan(&p.PollID, &title)
@@ -119,6 +44,37 @@ func (pub *Public) populate() error {
 			p.Title = title.String
 		}
 		pub.Polls = append(pub.Polls, p)
+	}
+	return err
+}
+
+type MenuData struct {
+	Email           string
+	Token           string
+	TokenExpiration string
+	Polls           []poll.Poll
+}
+
+func (m *MenuData) populate() error {
+	db, err := database.InitDB("test.db")
+	if err != nil {
+		return err
+	}
+	rows, err := db.Query("SELECT poll_id, title FROM polls WHERE email = ?", m.Email)
+	if err != nil {
+		return err
+	}
+	p := poll.Poll{}
+	var title sql.NullString
+	for rows.Next() {
+		err = rows.Scan(&p.PollID, &title)
+		if err != nil {
+			return err
+		}
+		if title.Valid {
+			p.Title = title.String
+		}
+		m.Polls = append(m.Polls, p)
 	}
 	return err
 }
@@ -184,102 +140,13 @@ func menuHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func initPoll() (*Poll, error) {
-	poll := &Poll{}
+func initPoll() (*poll.Poll, error) {
+	poll := &poll.Poll{}
 	_, err := database.InitDB("test.db")
 	return poll, err
 }
 
-func (p *Poll) new(u *user.User) error {
-	if u.Email == "" {
-		return fmt.Errorf("email missing")
-	}
-	p.Email = u.Email
-	p.Token = u.Token
-	p.TokenExpiration = u.TokenExpiration
 
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	statement, err := db.Prepare("INSERT INTO polls (email) VALUES (?)")
-	if err != nil {
-		return err
-	}
-	res, err := statement.Exec(u.Email)
-	if err != nil {
-		return err
-	}
-	p.PollID, err = res.LastInsertId()
-	return err
-}
-
-func (p *Poll) populate(u *user.User) error {
-	if p.PollID == 0 {
-		return fmt.Errorf("poll id missing")
-	}
-	p.Email = u.Email
-	p.Token = u.Token
-	p.TokenExpiration = u.TokenExpiration
-
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT title FROM polls WHERE poll_id = ?", p.PollID)
-	if err != nil {
-		return err
-	}
-	var title sql.NullString
-	for rows.Next() {
-		rows.Scan(&title)
-	}
-	if title.Valid {
-		p.Title = title.String
-	}
-	rows, err = db.Query("SELECT q_id, question FROM questions WHERE poll_id = ?", p.PollID)
-	if err != nil {
-		return err
-	}
-	p.Questions = []Question{} // reset question array
-	q := Question{}
-	for rows.Next() {
-		err = rows.Scan(&q.QID, &q.Question)
-		if err != nil {
-			return err
-		}
-		p.Questions = append(p.Questions, q)
-	}
-	return err
-}
-
-func (poll *Poll) newQuestion(question string) (int64, error) {
-	if poll.PollID == 0 {
-		return 0, fmt.Errorf("poll id missing")
-	}
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return 0, err
-	}
-	statement, err := db.Prepare("INSERT INTO questions (poll_id, question) VALUES (?, ?)")
-	if err != nil {
-		return 0, err
-	}
-	res, err := statement.Exec(poll.PollID, question)
-	if err != nil {
-		return 0, err
-	}
-	newQID, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	newQ := &Question{
-		QID:      newQID,
-		Question: question,
-	}
-	poll.Questions = append(poll.Questions, *newQ)
-	return newQ.QID, err
-}
 
 func createPollHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
@@ -295,7 +162,7 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.FormValue("poll") == "new" {
-		err = poll.new(u)
+		err = poll.New(u)
 		if err != nil {
 			fmt.Print(err)
 		}
@@ -304,7 +171,7 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		poll.PollID, _ = strconv.ParseInt(r.FormValue("poll"), 10, 64)
 	}
 
-	poll.populate(u)
+	poll.Populate(u)
 
 	newQ := r.FormValue("new-question")
 
@@ -312,19 +179,19 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		// update title
 		poll.Title = r.FormValue("title")
 		poll.PollID, _ = strconv.ParseInt(r.FormValue("poll-id"), 10, 64)
-		poll.update()
+		poll.Update()
 
 		// update questions
 		for _, q := range poll.Questions {
 			if q.Question != r.FormValue(strconv.FormatInt(q.QID, 10)) {
 				q.Question = r.FormValue(strconv.FormatInt(q.QID, 10))
-				q.update()
+				q.Update()
 			}
 		}
 
 		// add new question
 		if newQ != "" {
-			newQID, err := poll.newQuestion(newQ)
+			newQID, err := poll.NewQuestion(newQ)
 			if err != nil {
 				fmt.Print(err)
 			}
@@ -335,7 +202,7 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	poll.populate(u)
+	poll.Populate(u)
 
 	t, _ := template.ParseFiles("templates/create-poll.html")
 	t.Execute(w, poll)
@@ -355,8 +222,6 @@ func saveUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Execute() {
-	// err := database.InitDB("test.db")
-
 	http.HandleFunc("/", MainHandler)
 	http.HandleFunc("/new-user", newUserHandler)
 	http.HandleFunc("/save-user", saveUserHandler)
