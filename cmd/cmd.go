@@ -1,140 +1,22 @@
 package cmd
 
 import (
-	"crypto/md5"
 	"database/sql"
-	"encoding/hex"
 	"strconv"
-	"time"
 
-	"errors"
 	"fmt"
 	"html/template"
 
 	"net/http"
 
+	"github.com/maddatascience/simple-polling-web-app/database"
+	"github.com/maddatascience/simple-polling-web-app/models/user"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Page struct {
 	Title string
 	Body  []byte
-}
-
-type User struct {
-	Email           string
-	Password        string
-	ConfirmPassword string
-	Token           string
-	TokenExpiration string
-}
-
-func (u *User) save() error {
-	if u.Password != u.ConfirmPassword {
-		return errors.New("passwords do not match, try again.")
-	}
-	db, err := sql.Open("sqlite3", "test.db")
-	if err != nil {
-		return err
-	}
-
-	emailBytes := []byte(u.Email)
-	passwordBytes := []byte(u.Password)
-	emailMD5 := md5.Sum(emailBytes)
-	passwordMD5 := md5.Sum(passwordBytes)
-	hashedEmail := hex.EncodeToString(emailMD5[:])
-	hashedPassword := hex.EncodeToString(passwordMD5[:])
-
-	fmt.Println("hashedEmail:", hashedEmail)
-	fmt.Println("hashedPassword:", hashedPassword)
-
-	statement, err := db.Prepare("INSERT INTO users (email, hashedEmail, hashedPassword) VALUES (?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	_, err = statement.Exec(u.Email, hashedEmail, hashedPassword)
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT email, hashedEmail, hashedPassword FROM users WHERE email = ?", u.Email)
-	if err != nil {
-		return err
-	}
-	var email string
-	for rows.Next() {
-		rows.Scan(&email, &hashedEmail, &hashedPassword)
-		fmt.Println(email + ": " + hashedEmail + " " + hashedPassword)
-	}
-	return nil
-}
-
-func (u *User) validate() (string, string, error) {
-	if time.Now().String() > u.TokenExpiration {
-		return "", u.TokenExpiration, fmt.Errorf("Token Expired")
-	}
-	db, err := sql.Open("sqlite3", "test.db")
-	if err != nil {
-		return "", "", err
-	}
-	rows, err := db.Query("SELECT token, token_expiration FROM users WHERE email = ?", u.Email)
-	if err != nil {
-		return "", "", err
-	}
-	var oldToken string
-	var tokenExpiration string
-	for rows.Next() {
-		rows.Scan(&oldToken, &tokenExpiration)
-	}
-
-	if oldToken == u.Token && tokenExpiration == u.TokenExpiration {
-		newExpiration := time.Now().Add(time.Hour).String()
-		tokenBytes := []byte(oldToken + newExpiration)
-		tokenMD5 := md5.Sum(tokenBytes)
-		newToken := hex.EncodeToString(tokenMD5[:])
-
-		statement, err := db.Prepare("UPDATE users SET token_expiration = ?, token = ? WHERE email = ? and token = ?")
-		if err != nil {
-			return "", "", err
-		}
-		_, err = statement.Exec(newExpiration, newToken, u.Email, oldToken)
-		fmt.Println(u.Email + ": " + newExpiration + " " + newToken)
-		return newExpiration, newToken, err
-	}
-	return "", "", fmt.Errorf("Token and/or Token Expiration doesn't match")
-}
-
-func (u *User) login() (string, string, error) {
-	passwordBytes := []byte(u.Password)
-	passwordMD5 := md5.Sum(passwordBytes)
-
-	db, err := sql.Open("sqlite3", "test.db")
-	if err != nil {
-		return "", "", err
-	}
-	rows, err := db.Query("SELECT hashedPassword FROM users WHERE email = ?", u.Email)
-	if err != nil {
-		return "", "", err
-	}
-	var hashedPassword string
-	for rows.Next() {
-		rows.Scan(&hashedPassword)
-	}
-	if hashedPassword != hex.EncodeToString(passwordMD5[:]) {
-		return "", "", fmt.Errorf("password incorrect")
-	}
-	expiration := time.Now().Add(time.Hour).String()
-
-	tokenBytes := []byte(hashedPassword + expiration)
-	tokenMD5 := md5.Sum(tokenBytes)
-	token := hex.EncodeToString(tokenMD5[:])
-
-	statement, err := db.Prepare("UPDATE users SET token_expiration = ?, token = ? WHERE email = ? and hashedPassword = ?")
-	if err != nil {
-		return "", "", err
-	}
-	_, err = statement.Exec(expiration, token, u.Email, hashedPassword)
-	fmt.Println(u.Email + ": " + expiration + " " + token)
-	return expiration, token, err
 }
 
 type Question struct {
@@ -146,7 +28,7 @@ type Question struct {
 }
 
 func (q *Question) update() error {
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
 	}
@@ -169,7 +51,7 @@ type Poll struct {
 }
 
 func (p *Poll) update() error {
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
 	}
@@ -190,7 +72,7 @@ type MenuData struct {
 }
 
 func (m *MenuData) populate() error {
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
 	}
@@ -218,7 +100,7 @@ type Public struct {
 }
 
 func (pub *Public) populate() error {
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
 	}
@@ -247,7 +129,7 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Print(err)
 	}
-	t, err := template.ParseFiles("index.html")
+	t, err := template.ParseFiles("templates/index.html")
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -258,19 +140,19 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func newUserHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("new-user.html")
+	t, _ := template.ParseFiles("templates/new-user.html")
 	t.Execute(w, nil)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("login.html")
+	t, _ := template.ParseFiles("templates/login.html")
 	t.Execute(w, nil)
 }
 
 func menuHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	// logic part of log in
-	u := &User{
+	u := &user.User{
 		Email:           r.FormValue("email"),
 		Password:        r.FormValue("password"),
 		Token:           r.FormValue("token"),
@@ -282,57 +164,33 @@ func menuHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if u.Password != "" {
-		token, expiration, err := u.login()
+		token, expiration, err := u.Login()
 		if err != nil {
 			fmt.Print(err)
 		}
 		menu.Token = token
 		menu.TokenExpiration = expiration
-		t, _ := template.ParseFiles("menu.html")
+		t, _ := template.ParseFiles("templates/menu.html")
 		t.Execute(w, menu)
 	} else if u.Token != "" && u.TokenExpiration != "" {
-		u.validate()
+		u.Validate()
 		menu.Token = u.Token
 		menu.TokenExpiration = u.TokenExpiration
 		menu.populate()
-		t, _ := template.ParseFiles("menu.html")
+		t, _ := template.ParseFiles("templates/menu.html")
 		t.Execute(w, menu)
 	} else {
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
-
 }
 
 func initPoll() (*Poll, error) {
 	poll := &Poll{}
-	db, err := sql.Open("sqlite3", "test.db")
-	if err != nil {
-		return poll, err
-	}
-	statement, err :=
-		db.Prepare(`CREATE TABLE IF NOT EXISTS polls (
-			poll_id INTEGER PRIMARY KEY,
-			email VARCHAR(320), 
-			title TEXT
-			)`)
-	if err != nil {
-		return poll, err
-	}
-	statement.Exec()
-	statement, err =
-		db.Prepare(`CREATE TABLE IF NOT EXISTS questions (
-			q_id INTEGER PRIMARY KEY,
-			poll_id INTEGER,
-			question TEXT
-			)`)
-	if err != nil {
-		return poll, err
-	}
-	_, err = statement.Exec()
+	_, err := database.InitDB("test.db")
 	return poll, err
 }
 
-func (p *Poll) new(u *User) error {
+func (p *Poll) new(u *user.User) error {
 	if u.Email == "" {
 		return fmt.Errorf("email missing")
 	}
@@ -340,7 +198,7 @@ func (p *Poll) new(u *User) error {
 	p.Token = u.Token
 	p.TokenExpiration = u.TokenExpiration
 
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
 	}
@@ -356,7 +214,7 @@ func (p *Poll) new(u *User) error {
 	return err
 }
 
-func (p *Poll) populate(u *User) error {
+func (p *Poll) populate(u *user.User) error {
 	if p.PollID == 0 {
 		return fmt.Errorf("poll id missing")
 	}
@@ -364,7 +222,7 @@ func (p *Poll) populate(u *User) error {
 	p.Token = u.Token
 	p.TokenExpiration = u.TokenExpiration
 
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
 	}
@@ -399,7 +257,7 @@ func (poll *Poll) newQuestion(question string) (int64, error) {
 	if poll.PollID == 0 {
 		return 0, fmt.Errorf("poll id missing")
 	}
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := database.InitDB("test.db")
 	if err != nil {
 		return 0, err
 	}
@@ -425,12 +283,12 @@ func (poll *Poll) newQuestion(question string) (int64, error) {
 
 func createPollHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	u := &User{
+	u := &user.User{
 		Email:           r.FormValue("email"),
 		Token:           r.FormValue("token"),
 		TokenExpiration: r.FormValue("expiration"),
 	}
-	u.validate()
+	u.Validate()
 	poll, err := initPoll()
 	if err != nil {
 		fmt.Print(err)
@@ -479,17 +337,17 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 
 	poll.populate(u)
 
-	t, _ := template.ParseFiles("create-poll.html")
+	t, _ := template.ParseFiles("templates/create-poll.html")
 	t.Execute(w, poll)
 }
 
 func saveUserHandler(w http.ResponseWriter, r *http.Request) {
-	u := &User{
+	u := &user.User{
 		Email:           r.FormValue("email"),
 		Password:        r.FormValue("password"),
 		ConfirmPassword: r.FormValue("confirm-password"),
 	}
-	err := u.save()
+	err := u.Save()
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -497,22 +355,8 @@ func saveUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Execute() {
-	db, _ := sql.Open("sqlite3", "test.db")
-	statement, err :=
-		db.Prepare(`CREATE TABLE IF NOT EXISTS users (
-			email VARCHAR(320) PRIMARY KEY, 
-			hashedEmail CHAR(32), 
-			hashedPassword CHAR(32),
-			token CHAR(32),
-			token_expiration CHAR(23)
-			)`)
-	if err != nil {
-		fmt.Print(err)
-	}
-	_, err = statement.Exec()
-	if err != nil {
-		fmt.Print(err)
-	}
+	// err := database.InitDB("test.db")
+
 	http.HandleFunc("/", MainHandler)
 	http.HandleFunc("/new-user", newUserHandler)
 	http.HandleFunc("/save-user", saveUserHandler)
