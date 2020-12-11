@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"crypto/md5"
@@ -496,7 +496,7 @@ func saveUserHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
-func main() {
+func Execute() {
 	db, _ := sql.Open("sqlite3", "test.db")
 	statement, err :=
 		db.Prepare(`CREATE TABLE IF NOT EXISTS users (

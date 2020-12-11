@@ -4,8 +4,8 @@ A simple polling web application
 
 ```bash
 cd cmd
-docker build -t application-tag .
-docker run -it --rm -p 5051:5050 application-tag
+docker build -t simple-polling-web-app .
+docker run -it --rm -p 5051:5050 simple-polling-web-app
 ```
 
 spent 1 hour (12/03 22:00-23:00) thinking about it, sketching data model, etc.
