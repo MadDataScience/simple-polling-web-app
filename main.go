@@ -11,5 +11,8 @@ import (
 
 func main() {
 	// println("Build time:" + BuildTime + ", Build commit hash:" + BuildCommitHash)
-	cmd.Execute()
+	err := cmd.Execute()
+	if err != nil {
+		println(err)
+	}
 }

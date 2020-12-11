@@ -34,7 +34,10 @@ func InitDB(dataSourceName string) (*sql.DB, error) { //
 	if err != nil {
 		return db, err
 	}
-	statement.Exec()
+	_, err = statement.Exec()
+	if err != nil {
+		return db, err
+	}
 	statement, err =
 		db.Prepare(`CREATE TABLE IF NOT EXISTS questions (
 			q_id INTEGER PRIMARY KEY,

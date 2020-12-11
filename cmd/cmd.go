@@ -221,7 +221,7 @@ func saveUserHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
-func Execute() {
+func Execute() error {
 	http.HandleFunc("/", MainHandler)
 	http.HandleFunc("/new-user", newUserHandler)
 	http.HandleFunc("/save-user", saveUserHandler)
@@ -231,5 +231,5 @@ func Execute() {
 
 	fmt.Println("Listening on port 5050...")
 
-	http.ListenAndServe(":5050", nil)
+	return http.ListenAndServe(":5050", nil)
 }
