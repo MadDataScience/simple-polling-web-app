@@ -10,8 +10,8 @@ import (
 	"net/http"
 
 	"github.com/maddatascience/simple-polling-web-app/database"
-	"github.com/maddatascience/simple-polling-web-app/models/user"
 	"github.com/maddatascience/simple-polling-web-app/models/poll"
+	"github.com/maddatascience/simple-polling-web-app/models/user"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -96,17 +96,32 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func newUserHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("templates/new-user.html")
-	t.Execute(w, nil)
+	t, err := template.ParseFiles("templates/new-user.html")
+	if err != nil {
+		fmt.Print(err)
+	}
+	err = t.Execute(w, nil)
+	if err != nil {
+		fmt.Print(err)
+	}
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("templates/login.html")
-	t.Execute(w, nil)
+	t, err := template.ParseFiles("templates/login.html")
+	if err != nil {
+		fmt.Print(err)
+	}
+	err = t.Execute(w, nil)
+	if err != nil {
+		fmt.Print(err)
+	}
 }
 
 func menuHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Print(err)
+	}
 	// logic part of log in
 	u := &user.User{
 		Email:           r.FormValue("email"),
@@ -115,28 +130,36 @@ func menuHandler(w http.ResponseWriter, r *http.Request) {
 		TokenExpiration: r.FormValue("expiration"),
 	}
 	fmt.Println("email:", u.Email)
+	fmt.Printf("\nuser: %v\n", u)
 	menu := MenuData{
 		Email: u.Email,
 	}
 
 	if u.Password != "" {
-		token, expiration, err := u.Login()
-		if err != nil {
-			fmt.Print(err)
-		}
-		menu.Token = token
-		menu.TokenExpiration = expiration
-		t, _ := template.ParseFiles("templates/menu.html")
-		t.Execute(w, menu)
+		err = u.Login()
 	} else if u.Token != "" && u.TokenExpiration != "" {
-		u.Validate()
-		menu.Token = u.Token
-		menu.TokenExpiration = u.TokenExpiration
-		menu.populate()
-		t, _ := template.ParseFiles("templates/menu.html")
-		t.Execute(w, menu)
+		err = u.Validate()
 	} else {
 		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	if err != nil {
+		fmt.Print(err)
+	}
+	fmt.Printf("%v", u)
+	menu.Token = u.Token
+	menu.TokenExpiration = u.TokenExpiration
+	err = menu.populate()
+	if err != nil {
+		fmt.Print(err)
+	}
+	t, err := template.ParseFiles("templates/menu.html")
+	if err != nil {
+		fmt.Print(err)
+	}
+	err = t.Execute(w, menu)
+	if err != nil {
+		fmt.Print(err)
 	}
 }
 
@@ -146,46 +169,62 @@ func initPoll() (*poll.Poll, error) {
 	return poll, err
 }
 
-
-
 func createPollHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Print(err)
+	}
 	u := &user.User{
 		Email:           r.FormValue("email"),
 		Token:           r.FormValue("token"),
 		TokenExpiration: r.FormValue("expiration"),
 	}
-	u.Validate()
+	err = u.Validate()
+	if err != nil {
+		fmt.Print(err)
+	}
 	poll, err := initPoll()
 	if err != nil {
 		fmt.Print(err)
 	}
 
-	if r.FormValue("poll") == "new" {
+	if r.FormValue("poll-id") == "0" {
 		err = poll.New(u)
 		if err != nil {
 			fmt.Print(err)
 		}
 		fmt.Printf("poll id: %v,", poll.PollID)
 	} else {
-		poll.PollID, _ = strconv.ParseInt(r.FormValue("poll"), 10, 64)
+		poll.PollID, _ = strconv.ParseInt(r.FormValue("poll-id"), 10, 64)
 	}
 
-	poll.Populate(u)
+	err = poll.Populate(u)
+	if err != nil {
+		fmt.Print(err)
+	}
+	fmt.Printf("\npoll %d has questions: %v\n", poll.PollID, poll.Questions)
 
 	newQ := r.FormValue("new-question")
 
 	if r.FormValue("page") == "create-poll" { // coming from create page
 		// update title
+		println("r.FormValue('page') == 'create-poll'")
 		poll.Title = r.FormValue("title")
 		poll.PollID, _ = strconv.ParseInt(r.FormValue("poll-id"), 10, 64)
-		poll.Update()
+		err = poll.Update()
+		if err != nil {
+			fmt.Print(err)
+		}
 
 		// update questions
 		for _, q := range poll.Questions {
+			fmt.Printf("found q: %v", q)
 			if q.Question != r.FormValue(strconv.FormatInt(q.QID, 10)) {
 				q.Question = r.FormValue(strconv.FormatInt(q.QID, 10))
-				q.Update()
+				err = q.Update()
+				if err != nil {
+					fmt.Print(err)
+				}
 			}
 		}
 
@@ -202,10 +241,19 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	poll.Populate(u)
+	err = poll.Populate(u)
+	if err != nil {
+		fmt.Print(err)
+	}
 
-	t, _ := template.ParseFiles("templates/create-poll.html")
-	t.Execute(w, poll)
+	t, err := template.ParseFiles("templates/create-poll.html")
+	if err != nil {
+		fmt.Print(err)
+	}
+	err = t.Execute(w, poll)
+	if err != nil {
+		fmt.Print(err)
+	}
 }
 
 func saveUserHandler(w http.ResponseWriter, r *http.Request) {

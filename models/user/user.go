@@ -60,77 +60,83 @@ func (u *User) Save() error {
 	return nil
 }
 
-func (u *User) Validate() (string, string, error) {
+func (u *User) Validate() error {
+	println("validate")
 	if time.Now().String() > u.TokenExpiration {
-		return "", u.TokenExpiration, fmt.Errorf("Token Expired")
+		return fmt.Errorf("\nToken Expired: %s > %s\n", time.Now().String(), u.TokenExpiration)
 	}
 	db, err := database.InitDB("test.db")
 	if err != nil {
-		return "", "", err
+		return err
 	}
 	rows, err := db.Query("SELECT token, token_expiration FROM users WHERE email = ?", u.Email)
 	if err != nil {
-		return "", "", err
+		return err
 	}
 	var oldToken string
 	var tokenExpiration string
 	for rows.Next() {
 		err = rows.Scan(&oldToken, &tokenExpiration)
 		if err != nil {
-			return "", "", err
+			return err
 		}
 	}
-
+	fmt.Printf("\ncomparing %v to \n\t(%s --- %s)", u, oldToken, tokenExpiration)
 	if oldToken == u.Token && tokenExpiration == u.TokenExpiration {
+		fmt.Printf("\n%s and %s match, updating...\n", oldToken, tokenExpiration)
 		newExpiration := time.Now().Add(time.Hour).String()
-		tokenBytes := []byte(oldToken + newExpiration)
+		tokenBytes := []byte(oldToken + u.TokenExpiration)
 		tokenMD5 := md5.Sum(tokenBytes)
 		newToken := hex.EncodeToString(tokenMD5[:])
 
 		statement, err := db.Prepare("UPDATE users SET token_expiration = ?, token = ? WHERE email = ? and token = ?")
 		if err != nil {
-			return "", "", err
+			return err
 		}
-		_, err = statement.Exec(newExpiration, newToken, u.Email, oldToken)
-		fmt.Println(u.Email + ": " + newExpiration + " " + newToken)
-		return newExpiration, newToken, err
+		res, err := statement.Exec(newExpiration, newToken, u.Email, oldToken)
+		fmt.Printf("\ttransaction result: %v\n", res)
+		fmt.Printf("\t%s: %s <- %s; %s <- %s\n", u.Email, u.TokenExpiration, newExpiration, u.Token, newToken)
+		u.TokenExpiration = newExpiration
+		u.Token = newToken
+		return err
 	}
-	return "", "", fmt.Errorf("Token and/or Token Expiration doesn't match")
+	return fmt.Errorf("Token and/or Token Expiration doesn't match")
 }
 
-func (u *User) Login() (string, string, error) {
+func (u *User) Login() error {
+	println("login")
 	passwordBytes := []byte(u.Password)
 	passwordMD5 := md5.Sum(passwordBytes)
 
 	db, err := database.InitDB("test.db")
 	if err != nil {
-		return "", "", err
+		return err
 	}
 	rows, err := db.Query("SELECT hashedPassword FROM users WHERE email = ?", u.Email)
 	if err != nil {
-		return "", "", err
+		return err
 	}
 	var hashedPassword string
 	for rows.Next() {
 		err = rows.Scan(&hashedPassword)
 		if err != nil {
-			return "", "", err
-		}	
+			return err
+		}
 	}
 	if hashedPassword != hex.EncodeToString(passwordMD5[:]) {
-		return "", "", fmt.Errorf("password incorrect")
+		return fmt.Errorf("password incorrect")
 	}
-	expiration := time.Now().Add(time.Hour).String()
+	u.TokenExpiration = time.Now().Add(time.Hour).String()
 
-	tokenBytes := []byte(hashedPassword + expiration)
+	tokenBytes := []byte(hashedPassword + u.TokenExpiration)
 	tokenMD5 := md5.Sum(tokenBytes)
-	token := hex.EncodeToString(tokenMD5[:])
+	u.Token = hex.EncodeToString(tokenMD5[:])
 
 	statement, err := db.Prepare("UPDATE users SET token_expiration = ?, token = ? WHERE email = ? and hashedPassword = ?")
 	if err != nil {
-		return "", "", err
+		return err
 	}
-	_, err = statement.Exec(expiration, token, u.Email, hashedPassword)
-	fmt.Println(u.Email + ": " + expiration + " " + token)
-	return expiration, token, err
+	_, err = statement.Exec(u.TokenExpiration, u.Token, u.Email, hashedPassword)
+	fmt.Println(u.Email + ": " + u.TokenExpiration + " " + u.Token)
+	return err
 }

@@ -7,10 +7,13 @@
   <input type="hidden" id="expiration" name="expiration" value="{{.TokenExpiration}}" />
   <input type="hidden" id="poll-id" name="poll-id" value="{{.PollID}}" />
   <B>Poll # {{.PollID}} Title: <input type="text" id="title" name="title" value="{{.Title}}" /></B><br>
+  Questions:
+  <ol>
   {{range .Questions}}
-  Question {{.QID}}: <input type="text" id="{{.QID}}" name="{{.QID}}" value="{{.Question}}" /><br>
+  <li><input type="text" id="{{.QID}}" name="{{.QID}}" value="{{.Question}}" /></li>
   {{end}}
-  New Question (leave blank if done): <input type="text" id="new-question" name="new-question" value="" />
+  <li>New Question (leave blank if done): <input type="text" id="new-question" name="new-question" value="" /></li>
+</ol>
   <div><input type="submit" id="append" name="append" value="Submit"></div>
   <div><input type="submit" id="finished" name="finished" value="Finished"></div>
   </form>

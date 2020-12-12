@@ -5,9 +5,9 @@
   <input type="hidden" id="token" name="token" value="{{.Token}}" />
   <input type="hidden" id="expiration" name="expiration" value="{{.TokenExpiration}}" />
   {{range .Polls}}
-  <input type="radio" id="{{.PollID}}" name="poll" value="{{.PollID}}">{{.Title}}<br>
+  <input type="radio" id="{{.PollID}}" name="poll-id" value="{{.PollID}}">{{.Title}}<br>
   {{end}}
-  <input type="radio" id="new" name="poll" value="new">New
+  <input type="radio" id="new" name="poll-id" value="0" checked>New
   <div><input type="submit" value="Continue"></div>
   </form>
 </body></html>
