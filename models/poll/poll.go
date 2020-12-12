@@ -57,14 +57,10 @@ func (p *UserPoll) New(u *user.User) error {
 	return err
 }
 
-func (p *UserPoll) Populate(u *user.User) error {
+func (p *Poll) Populate() error {
 	if p.PollID == 0 {
 		return fmt.Errorf("poll id missing")
 	}
-	p.Email = u.Email
-	p.Token = u.Token
-	p.TokenExpiration = u.TokenExpiration
-
 	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
@@ -97,6 +93,13 @@ func (p *UserPoll) Populate(u *user.User) error {
 		p.Questions = append(p.Questions, q)
 	}
 	return err
+}
+
+func (p *UserPoll) Populate(u *user.User) error {
+	p.Email = u.Email
+	p.Token = u.Token
+	p.TokenExpiration = u.TokenExpiration
+	return p.Poll.Populate()
 }
 
 func (p *UserPoll) NewQuestion(questionText string) (int64, error) {

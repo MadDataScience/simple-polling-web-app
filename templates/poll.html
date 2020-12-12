@@ -1,9 +1,17 @@
-<html lang="en"><body><h1>{{.Title}}</h1>
-<form>
-  <ol>  
-    {{range .Questions}}
-    <li><label for="{{.QID}}">{{.Question}}</label><input type="checkbox" id="{{.QID}}" name="{{.QID}}" /></li>
-    {{end}}
-  </ol>
-</form>
-</body></html>
+<html lang="en">
+  <body>
+    <h1>{{.Title}}</h1>
+    <form action="/submit" method="POST">
+      <input type="hidden" id="poll-id" name="poll-id" value="{{.PollID}}" />
+      <ol>
+        {{range .Questions}}
+        <li>
+          <label for="{{.QID}}">{{.QuestionText}}</label
+          ><input type="checkbox" id="{{.QID}}" name="{{.QID}}" />
+        </li>
+        {{end}}
+      </ol>
+      <input type="submit" id="finished" name="finished" value="Submit" />
+    </form>
+  </body>
+</html>

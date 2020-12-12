@@ -285,9 +285,26 @@ func saveUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func pollHandler(w http.ResponseWriter, r *http.Request) {
-	pollID := r.URL.Path[len("/poll/"):]
-	fmt.Fprintf(w, "load poll %s!", pollID)
+	p := &poll.Poll{}
+	pollIDstr := r.URL.Path[len("/poll/"):]
+	p.PollID, _ = strconv.ParseInt(pollIDstr, 10, 64)
+	err := p.Populate()
+	if err != nil {
+		fmt.Print(err)
+	}
+	t, err := template.ParseFiles("templates/poll.html")
+	if err != nil {
+		fmt.Print(err)
+	}
+	err = t.Execute(w, p)
+	if err != nil {
+		fmt.Print(err)
+	}
 }
+
+// func submitHandler(w http.ResponseWriter, r *http.Request) {
+
+// }
 
 func Execute() error {
 	http.HandleFunc("/", MainHandler)
@@ -297,6 +314,7 @@ func Execute() error {
 	http.HandleFunc("/menu", menuHandler)
 	http.HandleFunc("/create", createPollHandler)
 	http.HandleFunc("/poll/", pollHandler)
+	http.HandleFunc("/submit", MainHandler)
 
 	fmt.Println("Listening on port 5050...")
 
