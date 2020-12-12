@@ -1,5 +1,9 @@
-<a href="new-user">new user</a>
-<a href="login">login</a>
-{{range .Polls}}
-<br/><a href="/poll/{{.PollID}}">{{.Title}}</a>
-{{end}}
+<html lang="en">
+  <body>
+    <a href="new-user">new user</a>
+    <a href="login">login</a>
+    {{range .Polls}}
+    <br /><a href="/poll/{{.PollID}}">{{.Title}}</a>
+    {{end}}
+  </body>
+</html>
