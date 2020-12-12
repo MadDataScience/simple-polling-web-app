@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"database/sql"
 	"strconv"
 
 	"fmt"
@@ -10,76 +9,14 @@ import (
 	"net/http"
 
 	"github.com/maddatascience/simple-polling-web-app/database"
+	"github.com/maddatascience/simple-polling-web-app/models/menu"
 	"github.com/maddatascience/simple-polling-web-app/models/poll"
 	"github.com/maddatascience/simple-polling-web-app/models/user"
-	_ "github.com/mattn/go-sqlite3"
 )
 
-type Page struct {
-	Title string
-	Body  []byte
-}
-
-type Menu struct {
-	Polls []poll.Poll
-}
-
-func (m *Menu) populate() error {
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT poll_id, title FROM polls")
-	if err != nil {
-		return err
-	}
-	p := poll.Poll{}
-	var title sql.NullString
-	for rows.Next() {
-		err = rows.Scan(&p.PollID, &title)
-		if err != nil {
-			return err
-		}
-		if title.Valid {
-			p.Title = title.String
-		}
-		m.Polls = append(m.Polls, p)
-	}
-	return err
-}
-
-type UserMenu struct {
-	user.User
-	Menu
-}
-
-func (m *UserMenu) populate() error {
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT poll_id, title FROM polls WHERE email = ?", m.Email)
-	if err != nil {
-		return err
-	}
-	p := poll.Poll{}
-	var title sql.NullString
-	for rows.Next() {
-		err = rows.Scan(&p.PollID, &title)
-		if err != nil {
-			return err
-		}
-		if title.Valid {
-			p.Title = title.String
-		}
-		m.Polls = append(m.Polls, p)
-	}
-	return err
-}
-
 func MainHandler(w http.ResponseWriter, r *http.Request) {
-	p := &Menu{}
-	err := p.populate()
+	p := &menu.Menu{}
+	err := p.Populate()
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -115,18 +52,16 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func renderMenu(u *user.User) (*UserMenu, error) {
-	_, err := fmt.Printf("\nuser: %v\n", u)
-	menu := &UserMenu{
-		*u,
-		Menu{},
+func renderMenu(u *user.User) (*menu.UserMenu, error) {
+	fmt.Printf("\nuser: %v\n", u)
+	menu := &menu.UserMenu{
+		User: *u,
 	}
+	err := fmt.Errorf("Neither Password nor Token provided")
 	if u.Password != "" {
 		err = u.Login()
 	} else if u.Token != "" && u.TokenExpiration != "" {
 		err = u.Validate()
-	} else {
-		err = fmt.Errorf("Neither Password nor Token provided")
 	}
 	if err != nil {
 		return menu, err
@@ -134,7 +69,7 @@ func renderMenu(u *user.User) (*UserMenu, error) {
 	fmt.Printf("%v", u)
 	menu.Token = u.Token
 	menu.TokenExpiration = u.TokenExpiration
-	err = menu.populate()
+	err = menu.Populate()
 	return menu, err
 }
 
@@ -168,7 +103,7 @@ func menuHandler(w http.ResponseWriter, r *http.Request) {
 
 func initPoll() (*poll.UserPoll, error) {
 	p := &poll.UserPoll{}
-	_, err := database.InitDB("test.db")
+	_, err := database.InitDB(database.DataSourceName)
 	return p, err
 }
 
@@ -306,7 +241,9 @@ func pollHandler(w http.ResponseWriter, r *http.Request) {
 
 // }
 
-func Execute() error {
+func Execute(port string, dataSourceName string) error {
+	database.DataSourceName = dataSourceName
+	fmt.Printf("Setting database.DataSourceName to %s...\n", dataSourceName)
 	http.HandleFunc("/", MainHandler)
 	http.HandleFunc("/new-user", newUserHandler)
 	http.HandleFunc("/save-user", saveUserHandler)
@@ -316,7 +253,7 @@ func Execute() error {
 	http.HandleFunc("/poll/", pollHandler)
 	http.HandleFunc("/submit", MainHandler)
 
-	fmt.Println("Listening on port 5050...")
+	fmt.Printf("Listening on port %s...\n", port)
 
-	return http.ListenAndServe(":5050", nil)
+	return http.ListenAndServe(":"+port, nil)
 }

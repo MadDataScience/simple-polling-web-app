@@ -2,8 +2,11 @@ package database
 
 import (
 	"database/sql"
+
 	_ "github.com/mattn/go-sqlite3"
 )
+
+var DataSourceName string
 
 func InitDB(dataSourceName string) (*sql.DB, error) { //
 	db, err := sql.Open("sqlite3", dataSourceName)

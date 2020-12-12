@@ -1,8 +1,6 @@
 package question
 
 import (
-	"fmt"
-
 	"github.com/maddatascience/simple-polling-web-app/database"
 )
 
@@ -11,13 +9,8 @@ type Question struct {
 	QuestionText string
 }
 
-// type UserQuestion struct {
-// 	user.User
-// 	Question
-// }
-
 func (q *Question) Update() error {
-	db, err := database.InitDB("test.db")
+	db, err := database.InitDB(database.DataSourceName)
 	if err != nil {
 		return err
 	}
@@ -26,6 +19,6 @@ func (q *Question) Update() error {
 		return err
 	}
 	_, err = statement.Exec(q.QuestionText, q.QID)
-	fmt.Printf("Question %d: %s\n", q.QID, q.QuestionText)
+	// fmt.Printf("Question %d: %s\n", q.QID, q.QuestionText)
 	return err
 }

@@ -3,6 +3,7 @@ package poll
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/maddatascience/simple-polling-web-app/database"
 	"github.com/maddatascience/simple-polling-web-app/models/question"
 	"github.com/maddatascience/simple-polling-web-app/models/user"
@@ -20,7 +21,7 @@ type UserPoll struct {
 }
 
 func (p *UserPoll) Update() error {
-	db, err := database.InitDB("test.db")
+	db, err := database.InitDB(database.DataSourceName)
 	if err != nil {
 		return err
 	}
@@ -29,7 +30,7 @@ func (p *UserPoll) Update() error {
 		return err
 	}
 	_, err = statement.Exec(p.Title, p.PollID)
-	fmt.Printf("Poll %d: %s\n", p.PollID, p.Title)
+	// fmt.Printf("Poll %d: %s\n", p.PollID, p.Title)
 	return err
 }
 
@@ -41,7 +42,7 @@ func (p *UserPoll) New(u *user.User) error {
 	p.Token = u.Token
 	p.TokenExpiration = u.TokenExpiration
 
-	db, err := database.InitDB("test.db")
+	db, err := database.InitDB(database.DataSourceName)
 	if err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func (p *Poll) Populate() error {
 	if p.PollID == 0 {
 		return fmt.Errorf("poll id missing")
 	}
-	db, err := database.InitDB("test.db")
+	db, err := database.InitDB(database.DataSourceName)
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func (p *UserPoll) NewQuestion(questionText string) (int64, error) {
 	if p.PollID == 0 {
 		return 0, fmt.Errorf("poll id missing")
 	}
-	db, err := database.InitDB("test.db")
+	db, err := database.InitDB(database.DataSourceName)
 	if err != nil {
 		return 0, err
 	}
