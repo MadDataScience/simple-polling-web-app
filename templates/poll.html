@@ -1,0 +1,9 @@
+<html lang="en"><body><h1>{{.Title}}</h1>
+<form>
+  <ol>  
+    {{range .Questions}}
+    <li><label for="{{.QID}}">{{.Question}}</label><input type="checkbox" id="{{.QID}}" name="{{.QID}}" /></li>
+    {{end}}
+  </ol>
+</form>
+</body></html>

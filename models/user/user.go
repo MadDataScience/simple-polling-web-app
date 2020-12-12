@@ -60,6 +60,44 @@ func (u *User) Save() error {
 	return nil
 }
 
+func (u *User) Login() error {
+	println("login")
+	passwordBytes := []byte(u.Password)
+	passwordMD5 := md5.Sum(passwordBytes)
+
+	db, err := database.InitDB("test.db")
+	if err != nil {
+		return err
+	}
+	rows, err := db.Query("SELECT hashedPassword FROM users WHERE email = ?", u.Email)
+	if err != nil {
+		return err
+	}
+	var hashedPassword string
+	for rows.Next() {
+		err = rows.Scan(&hashedPassword)
+		if err != nil {
+			return err
+		}
+	}
+	if hashedPassword != hex.EncodeToString(passwordMD5[:]) {
+		return fmt.Errorf("password incorrect")
+	}
+	u.TokenExpiration = time.Now().Add(time.Hour).String()
+
+	tokenBytes := []byte(hashedPassword + u.TokenExpiration)
+	tokenMD5 := md5.Sum(tokenBytes)
+	u.Token = hex.EncodeToString(tokenMD5[:])
+
+	statement, err := db.Prepare("UPDATE users SET token_expiration = ?, token = ? WHERE email = ? and hashedPassword = ?")
+	if err != nil {
+		return err
+	}
+	_, err = statement.Exec(u.TokenExpiration, u.Token, u.Email, hashedPassword)
+	fmt.Println(u.Email + ": " + u.TokenExpiration + " " + u.Token)
+	return err
+}
+
 func (u *User) Validate() error {
 	println("validate")
 	if time.Now().String() > u.TokenExpiration {
@@ -101,42 +139,4 @@ func (u *User) Validate() error {
 		return err
 	}
 	return fmt.Errorf("Token and/or Token Expiration doesn't match")
-}
-
-func (u *User) Login() error {
-	println("login")
-	passwordBytes := []byte(u.Password)
-	passwordMD5 := md5.Sum(passwordBytes)
-
-	db, err := database.InitDB("test.db")
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT hashedPassword FROM users WHERE email = ?", u.Email)
-	if err != nil {
-		return err
-	}
-	var hashedPassword string
-	for rows.Next() {
-		err = rows.Scan(&hashedPassword)
-		if err != nil {
-			return err
-		}
-	}
-	if hashedPassword != hex.EncodeToString(passwordMD5[:]) {
-		return fmt.Errorf("password incorrect")
-	}
-	u.TokenExpiration = time.Now().Add(time.Hour).String()
-
-	tokenBytes := []byte(hashedPassword + u.TokenExpiration)
-	tokenMD5 := md5.Sum(tokenBytes)
-	u.Token = hex.EncodeToString(tokenMD5[:])
-
-	statement, err := db.Prepare("UPDATE users SET token_expiration = ?, token = ? WHERE email = ? and hashedPassword = ?")
-	if err != nil {
-		return err
-	}
-	_, err = statement.Exec(u.TokenExpiration, u.Token, u.Email, hashedPassword)
-	fmt.Println(u.Email + ": " + u.TokenExpiration + " " + u.Token)
-	return err
 }

@@ -2,16 +2,19 @@ package question
 
 import (
 	"fmt"
+
 	"github.com/maddatascience/simple-polling-web-app/database"
 )
 
 type Question struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	QID             int64
-	Question        string
+	QID          int64
+	QuestionText string
 }
+
+// type UserQuestion struct {
+// 	user.User
+// 	Question
+// }
 
 func (q *Question) Update() error {
 	db, err := database.InitDB("test.db")
@@ -22,7 +25,7 @@ func (q *Question) Update() error {
 	if err != nil {
 		return err
 	}
-	_, err = statement.Exec(q.Question, q.QID)
-	fmt.Printf("Question %d: %s\n", q.QID, q.Question)
+	_, err = statement.Exec(q.QuestionText, q.QID)
+	fmt.Printf("Question %d: %s\n", q.QID, q.QuestionText)
 	return err
 }

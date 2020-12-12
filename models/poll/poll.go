@@ -1,23 +1,25 @@
 package poll
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 	"github.com/maddatascience/simple-polling-web-app/database"
 	"github.com/maddatascience/simple-polling-web-app/models/question"
 	"github.com/maddatascience/simple-polling-web-app/models/user"
 )
 
 type Poll struct {
-	Email           string
-	Token           string
-	TokenExpiration string
-	PollID          int64
-	Title           string
-	Questions       []question.Question
+	PollID    int64
+	Title     string
+	Questions []question.Question
 }
 
-func (p *Poll) Update() error {
+type UserPoll struct {
+	user.User
+	Poll
+}
+
+func (p *UserPoll) Update() error {
 	db, err := database.InitDB("test.db")
 	if err != nil {
 		return err
@@ -31,8 +33,7 @@ func (p *Poll) Update() error {
 	return err
 }
 
-
-func (p *Poll) New(u *user.User) error {
+func (p *UserPoll) New(u *user.User) error {
 	if u.Email == "" {
 		return fmt.Errorf("email missing")
 	}
@@ -56,7 +57,7 @@ func (p *Poll) New(u *user.User) error {
 	return err
 }
 
-func (p *Poll) Populate(u *user.User) error {
+func (p *UserPoll) Populate(u *user.User) error {
 	if p.PollID == 0 {
 		return fmt.Errorf("poll id missing")
 	}
@@ -74,7 +75,10 @@ func (p *Poll) Populate(u *user.User) error {
 	}
 	var title sql.NullString
 	for rows.Next() {
-		rows.Scan(&title)
+		err = rows.Scan(&title)
+		if err != nil {
+			return err
+		}
 	}
 	if title.Valid {
 		p.Title = title.String
@@ -86,7 +90,7 @@ func (p *Poll) Populate(u *user.User) error {
 	p.Questions = []question.Question{} // reset question array
 	q := question.Question{}
 	for rows.Next() {
-		err = rows.Scan(&q.QID, &q.Question)
+		err = rows.Scan(&q.QID, &q.QuestionText)
 		if err != nil {
 			return err
 		}
@@ -95,8 +99,8 @@ func (p *Poll) Populate(u *user.User) error {
 	return err
 }
 
-func (poll *Poll) NewQuestion(questionText string) (int64, error) {
-	if poll.PollID == 0 {
+func (p *UserPoll) NewQuestion(questionText string) (int64, error) {
+	if p.PollID == 0 {
 		return 0, fmt.Errorf("poll id missing")
 	}
 	db, err := database.InitDB("test.db")
@@ -107,7 +111,7 @@ func (poll *Poll) NewQuestion(questionText string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	res, err := statement.Exec(poll.PollID, questionText)
+	res, err := statement.Exec(p.PollID, questionText)
 	if err != nil {
 		return 0, err
 	}
@@ -116,9 +120,9 @@ func (poll *Poll) NewQuestion(questionText string) (int64, error) {
 		return 0, err
 	}
 	newQ := &question.Question{
-		QID:      newQID,
-		Question: questionText,
+		QID:          newQID,
+		QuestionText: questionText,
 	}
-	poll.Questions = append(poll.Questions, *newQ)
+	p.Questions = append(p.Questions, *newQ)
 	return newQ.QID, err
 }
