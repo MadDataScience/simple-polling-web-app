@@ -39,5 +39,15 @@
         <input type="submit" id="finished" name="finished" value="Submit" />
       </div>
     </form>
+    <table>
+      {{range .Questions}}
+      <tr>
+        <th>{{.QuestionText}}</th>
+        {{range .Answers}}
+        <td>{{.AnswerInt}}</td>
+        {{end}}
+      </tr>
+      {{end}}
+    </table>
   </body>
 </html>

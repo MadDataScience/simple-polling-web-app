@@ -91,6 +91,10 @@ func (p *Poll) Populate() error {
 		if err != nil {
 			return err
 		}
+		err = q.GetAnswers()
+		if err != nil {
+			return err
+		}
 		p.Questions = append(p.Questions, q)
 	}
 	return err

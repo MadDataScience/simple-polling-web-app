@@ -6,9 +6,13 @@ import (
 	"github.com/maddatascience/simple-polling-web-app/database"
 )
 
+type Answer struct {
+	AnswerInt int64
+}
 type Question struct {
 	QID          int64
 	QuestionText string
+	Answers      []Answer
 }
 
 func (q *Question) Update() error {
@@ -38,5 +42,26 @@ func (q *Question) Answer(a int) error {
 		return err
 	}
 	_, err = statement.Exec(q.QID, a)
+	return err
+}
+
+func (q *Question) GetAnswers() error {
+	db, err := database.InitDB(database.DataSourceName)
+	if err != nil {
+		return err
+	}
+	rows, err := db.Query("SELECT answerInt FROM answers WHERE q_id = ?", q.QID)
+	if err != nil {
+		return err
+	}
+	q.Answers = []Answer{}
+	a := Answer{}
+	for rows.Next() {
+		err = rows.Scan(&a.AnswerInt)
+		if err != nil {
+			return err
+		}
+		q.Answers = append(q.Answers, a)
+	}
 	return err
 }
