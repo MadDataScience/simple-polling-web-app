@@ -1,9 +1,43 @@
 <html lang="en">
+  <head>
+    <title>Simple Web Polling App</title>
+    <link rel="stylesheet" href="styles/styles.css" />
+  </head>
   <body>
+    <h1>Simple Web Polling App</h1>
     <a href="new-user">new user</a>
     <a href="login">login</a>
-    {{range .Polls}}
-    <br /><a href="/poll/{{.PollID}}">{{.Title}}</a>
-    {{end}}
+    <p>
+      Welcome to my simple web polling app. This app will allow you to create
+      simple polls (yes/no questions only), adminster them, and see results. If
+      this is your first time here, click on <a href="new-user">new user</a> to
+      create your account.
+    </p>
+    <p>
+      Once you create your account, <a href="login">login</a> to administer your
+      polls.
+    </p>
+    <p>
+      Once some polls have been created, you will be able to see them below.
+      Feel free to fill them out:
+    </p>
+    <ul>
+      {{range .Polls}}
+      <li><a href="/poll/{{.PollID}}">{{.Title}}</a></li>
+      {{end}}
+    </ul>
+    <p>
+      Once polls have been filled out, <a href="login">login</a> and you will be
+      able to see results on the edit page for the poll in question.
+    </p>
+    <p>
+      The source code for this app can be found at
+      <a
+        href="https://github.com/MadDataScience/simple-polling-web-app"
+        target="_blank"
+      >
+        github.com/MadDataScience/simple-polling-web-app</a
+      >
+    </p>
   </body>
 </html>

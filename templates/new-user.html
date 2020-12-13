@@ -1,11 +1,36 @@
 <html lang="en">
+  <head>
+    <title>Create New User</title>
+    <link rel="stylesheet" href="styles/styles.css" />
+  </head>
   <body>
     <h1>Create User</h1>
+    <a href="/">Home</a>
+    <h3>
+      Welcome to my Simple Web Polling App. Is this your first time here? If so,
+      please create an account.
+    </h3>
+    <h3>
+      <b>IMPORTANT:</b> this website <u>is not secure at all</u>, so do
+      <b>not</b> use a password you use elsewhere or which you would mind being
+      published on a public website.
+    </h3>
+    <p style="color: red">{{.Warn}}</p>
     <form action="/save-user" method="POST">
-      <div>email: <input type="email" name="email" /></div>
-      <div>password: <input type="password" name="password" /></div>
       <div>
-        confirm password: <input type="password" name="confirm-password" />
+        <label for="email">email</label>:<input type="email" name="email" />
+      </div>
+      <div>
+        <label for="password">password</label>:<input
+          type="password"
+          name="password"
+        />
+      </div>
+      <div>
+        <label for="confirm-password">confirm password</label>:<input
+          type="password"
+          name="confirm-password"
+        />
       </div>
       <input type="submit" value="Create User" />
     </form>

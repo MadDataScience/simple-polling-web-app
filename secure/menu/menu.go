@@ -6,10 +6,10 @@ import (
 	"html/template"
 	"net/http"
 
-	"github.com/maddatascience/simple-polling-web-app/models/user"
-
+	"github.com/maddatascience/simple-polling-web-app/auth"
 	"github.com/maddatascience/simple-polling-web-app/database"
 	"github.com/maddatascience/simple-polling-web-app/models/poll"
+	"github.com/maddatascience/simple-polling-web-app/models/user"
 )
 
 type Menu struct {
@@ -107,7 +107,9 @@ func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	menu, err := RenderMenu(u)
 	if err != nil {
 		fmt.Print(err)
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		println(err.Error())
+		r.Form.Add("error", err.Error())
+		auth.LoginHandler(w, r)
 		return
 	}
 	t, err := template.ParseFiles("templates/menu.html")

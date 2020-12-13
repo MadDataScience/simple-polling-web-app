@@ -1,5 +1,15 @@
 <html lang="en">
+  <head>
+    <title>Your Polls</title>
+    <link rel="stylesheet" href="styles/styles.css" />
+  </head>
   <body>
+    <h1>Your Polls</h1>
+    <a href="/">Home</a>
+    <p>
+      Select a poll to edit questions and see results or select "New" to create
+      a new poll.
+    </p>
     <form action="/create" method="POST">
       <input type="hidden" id="email" name="email" value="{{.Email}}" />
       <input type="hidden" id="token" name="token" value="{{.Token}}" />
@@ -17,7 +27,7 @@
         value="{{.PollID}}"
       />{{.Title}}<br />
       {{end}}
-      <input type="radio" id="new" name="poll-id" value="0" checked />New
+      <input type="radio" id="new" name="poll-id" value="0" checked />New<br />
       <div><input type="submit" value="Continue" /></div>
     </form>
   </body>

@@ -1,12 +1,17 @@
 <html lang="en">
+    <head>
+    <title>Login</title>
+    <link rel="stylesheet" href="styles/styles.css" />
+</head>
   <body>
-    <title></title>
-    </head>
-    <body>
+        <h1>Login</h1>
+        <a href="/">Home</a>
+        <p style="color: red">{{.Warn}}</p>
         <form action="/menu" method="post">
-            Email:<input type="email" name="email">
-            Password:<input type="password" name="password">
+            <label for="email">Email:</label><input type="email" name="email">
+            <label for="password">Password:</label><input type="password" name="password">
             <input type="submit" value="Login">
         </form>
+    </div>
     </body>
 </html>

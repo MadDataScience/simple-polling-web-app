@@ -1,5 +1,6 @@
 <html lang="en">
   <body>
+    <h1>Poll # {{.PollID}}</h1>
     <form action="/create" method="POST">
       <input type="hidden" id="page" name="page" value="create-poll" />
       <input type="hidden" id="email" name="email" value="{{.Email}}" />
@@ -11,11 +12,11 @@
         value="{{.TokenExpiration}}"
       />
       <input type="hidden" id="poll-id" name="poll-id" value="{{.PollID}}" />
-      <b
-        ><label for="title">Poll # {{.PollID}} Title:</label>
-        <input type="text" id="title" name="title" value="{{.Title}}" /></b
-      ><br />
-      Questions:
+      <h2>
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" value="{{.Title}}" />
+      </h2>
+      <h3>Questions:</h3>
       <ol>
         {{range .Questions}}
         <li>
@@ -27,27 +28,27 @@
           />
         </li>
         {{end}}
-        <li>
-          <label for="new-question">New Question (leave blank if done):</label>
-          <input type="text" id="new-question" name="new-question" value="" />
-        </li>
       </ol>
-      <!--div>
-        <input type="submit" id="append" name="append" value="Submit" />
-      </div-->
+      <label for="new-question">New Question (leave blank if done):</label>
+      <input type="text" id="new-question" name="new-question" value="" />
       <div>
         <input type="submit" id="finished" name="finished" value="Submit" />
       </div>
     </form>
+    <h2>Results</h2>
+    <hr />
+    {{.Responses}} Response(s):
     <table>
       {{range .Questions}}
       <tr>
         <th>{{.QuestionText}}</th>
         {{range .Answers}}
-        <td>{{.AnswerInt}}</td>
+        <td>{{if .AnswerInt}}yes{{else}}no{{end}}</td>
         {{end}}
       </tr>
       {{end}}
     </table>
+    <hr />
+    <b>Note:</b> answers may be uncorrelated.
   </body>
 </html>

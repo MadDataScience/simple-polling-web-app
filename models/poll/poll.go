@@ -18,6 +18,7 @@ type Poll struct {
 type UserPoll struct {
 	user.User
 	Poll
+	Responses int64
 }
 
 func (p *UserPoll) Update() error {
@@ -104,7 +105,25 @@ func (p *UserPoll) Populate(u *user.User) error {
 	p.Email = u.Email
 	p.Token = u.Token
 	p.TokenExpiration = u.TokenExpiration
-	return p.Poll.Populate()
+	err := p.Poll.Populate()
+	if err != nil {
+		return err
+	}
+	db, err := database.InitDB(database.DataSourceName)
+	if err != nil {
+		return err
+	}
+	rows, err := db.Query("select coalesce(max(answers), 0) from "+
+		"(select q_id, count(answer_id) as answers "+
+		" from questions join answers using (q_id) "+
+		" where poll_id = ? group by q_id);", p.PollID)
+	for rows.Next() {
+		err = rows.Scan(&p.Responses)
+		if err != nil {
+			return err
+		}
+	}
+	return err
 }
 
 func (p *UserPoll) NewQuestion(questionText string) (int64, error) {

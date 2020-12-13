@@ -18,7 +18,6 @@ func main() {
 	if dataSourceName == "" {
 		dataSourceName = defaultDataSource
 	}
-	// println("Build time:" + BuildTime + ", Build commit hash:" + BuildCommitHash)
 	err := cmd.Execute(port, dataSourceName)
 	if err != nil {
 		println(err)

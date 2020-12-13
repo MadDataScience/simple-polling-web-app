@@ -1,15 +1,15 @@
 # simple-polling-web-app
 
-A simple polling web application
+## A simple polling web application
 
-```bash
-docker build -t simple-polling-web-app .
-docker run -it --rm -p 5051:5050 simple-polling-web-app
-```
+This is the source code for a simple web polling application built using [Go](https://golang.org/), [SQLite](https://sqlite.org/index.html), and HTML (no JavaScript!)
 
-spent 1 hour (12/03 22:00-23:00) thinking about it, sketching data model, etc.
-spent 1 hour (12/04 13:00-14:00) setting up repo, docker, etc.
+### What you can do
 
-To Do:
-- make polls
-- Authentication - https://blog.usejournal.com/authentication-in-golang-c0677bcce1a8
+#### As a Poll Administrator:
+
+- sign up for the website using an email address and password
+  - **N.B.** This site is not secure, so do _not_ use a password you would mind being published on a public website. I recommend something simple like `123`.
+- create polls
+- edit polls
+- view poll results
