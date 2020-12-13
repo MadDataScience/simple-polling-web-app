@@ -101,12 +101,6 @@ func menuHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func initPoll() (*poll.UserPoll, error) {
-	p := &poll.UserPoll{}
-	_, err := database.InitDB(database.DataSourceName)
-	return p, err
-}
-
 func createPollHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -121,10 +115,7 @@ func createPollHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Print(err)
 	}
-	p, err := initPoll()
-	if err != nil {
-		fmt.Print(err)
-	}
+	p := &poll.UserPoll{}
 
 	if r.FormValue("poll-id") == "0" {
 		err = p.New(u)
@@ -237,9 +228,34 @@ func pollHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func submitHandler(w http.ResponseWriter, r *http.Request) {
-
-// }
+func submitHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Print(err)
+	}
+	pollID, err := strconv.ParseInt(r.FormValue("poll-id"), 10, 64)
+	if err != nil {
+		fmt.Print(err)
+	}
+	p, err := poll.RetrievePoll(pollID)
+	if err != nil {
+		fmt.Print(err)
+	}
+	for _, q := range p.Questions {
+		fmt.Printf("found q: %v", q.QID)
+		answer := r.FormValue(strconv.FormatInt(q.QID, 10))
+		fmt.Printf("found q: %v - answer: %s", q.QID, answer)
+		answerInt := 0
+		if answer != "" {
+			answerInt = 1
+		}
+		err = q.Answer(answerInt)
+		if err != nil {
+			fmt.Print(err)
+		}
+	}
+	MainHandler(w, r)
+}
 
 func Execute(port string, dataSourceName string) error {
 	database.DataSourceName = dataSourceName
@@ -251,7 +267,7 @@ func Execute(port string, dataSourceName string) error {
 	http.HandleFunc("/menu", menuHandler)
 	http.HandleFunc("/create", createPollHandler)
 	http.HandleFunc("/poll/", pollHandler)
-	http.HandleFunc("/submit", MainHandler)
+	http.HandleFunc("/submit", submitHandler)
 
 	fmt.Printf("Listening on port %s...\n", port)
 

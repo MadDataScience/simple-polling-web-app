@@ -130,3 +130,11 @@ func (p *UserPoll) NewQuestion(questionText string) (int64, error) {
 	p.Questions = append(p.Questions, *newQ)
 	return newQ.QID, err
 }
+
+func RetrievePoll(pollID int64) (*Poll, error) {
+	p := &Poll{
+		PollID: pollID,
+	}
+	err := p.Populate()
+	return p, err
+}
